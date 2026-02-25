@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRRT Prescription Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        fieldset {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        legend {
+            font-weight: bold;
+            color: #555;
+            padding: 0 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        label.inline-label {
+            display: inline-block;
+            margin-left: 5px;
+            font-weight: normal;
+        }
+        input[type="number"], select, input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        input[type="checkbox"] {
+            margin-bottom: 15px;
+        }
+        input[type="number"].short-input {
+            width: 100px;
+        }
+        .calculated-value, .fixed-text {
+            margin-bottom: 10px;
+            padding: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        .calculated-value strong {
+            color: #007bff;
+        }
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: monospace;
+            white-space: pre;
+            margin-top: 10px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.delete-button {
+            background-color: #dc3545;
+        }
+        button.delete-button:hover {
+            background-color: #c82333;
+        }
+        .inline-group {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .inline-group > div {
+            flex: 1;
+        }
+        #heparinOptions {
+            border-left: 3px solid #007bff;
+            padding-left: 15px;
+            margin-left: 5px;
+            margin-top: 10px;
+        }
+        .preset-section div {
+            margin-bottom:10px;
+        }
+        .uf-titrate-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .uf-titrate-group input[type="checkbox"] {
+            margin-right: 8px;
+            margin-bottom: 0; /* Align with label */
+            transform: scale(1.2); /* Slightly larger checkbox */
+        }
+        .uf-titrate-group label {
+            margin-bottom: 0; /* Align with checkbox */
+            font-weight: normal;
+        }
+        /* --- TOOLTIP STYLES --- */
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        .tooltip-trigger {
+            color: #007bff;
+            font-weight: bold;
+        }
+        .tooltip-container .tooltip-text {
+            visibility: hidden;
+            width: 280px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 150%;
+            left: 50%;
+            margin-left: -140px; /* Half of width */
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-weight: normal;
+            font-size: 0.9em;
+        }
+        .tooltip-container .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #555 transparent transparent transparent;
+        }
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CRRT Prescription Generator</h1>
+
+        <!-- Section 1: Modality & Access -->
+        <fieldset>
+            <legend>Section 1: Modality & Access</legend>
+            <div class="calculated-value"><strong>Mode:</strong> CVVHDF</div>
+            <div>
+                <label for="accessSite">Access Site:</label>
+                <select id="accessSite">
+                    <option value="Right IJV">Right IJV</option>
+                    <option value="Left IJV">Left IJV</option>
+                    <option value="Right Femoral">Right Femoral</option>
+                    <option value="Left Femoral">Left Femoral</option>
+                </select>
+            </div>
+            <div class="fixed-text"><strong>Flow Direction:</strong> A → return</div>
+        </fieldset>
+
+        <!-- Section 2: CRRT Settings -->
+        <fieldset>
+            <legend>Section 2: CRRT Settings</legend>
+            <div>
+                <label for="weight">Weight (kg):</label>
+                <input type="number" id="weight" value="70" min="1">
+            </div>
+            <div>
+                <label for="totalDosePerKg">Target Total Dose (ml/kg/hr):
+                    <span class="tooltip-container">
+                        <span class="tooltip-trigger">*</span>
+                        <span class="tooltip-text">KDIGO guidelines recommend 20-25 ml/kg/hr. However, a target of 30 ml/kg/hr is often used in practice to account for potential filter downtime and ensure the delivered dose remains therapeutic.</span>
+                    </span>
+                </label>
+                <select id="totalDosePerKg">
+                    <option value="25">25</option>
+                    <option value="30" selected>30</option>
+                    <option value="35">35</option>
+                </select>
+            </div>
+            <div id="totalEffluentDoseDisplay" class="calculated-value">Calculated Total Effluent Dose = 0 mL/hr</div>
+        </fieldset>
+
+        <!-- Section 3: Fluid Distribution -->
+        <fieldset>
+            <legend>Section 3: Fluid Distribution (Target Rates before UF Adjustment)</legend>
+            <div id="dialysateRateDisplay" class="calculated-value">Dialysate Rate (target): 0 mL/hr</div>
+            <div id="replacementFluidTotalDisplay" class="calculated-value">Replacement Fluid Total (target): 0 mL/hr</div>
+            <div>
+                <label for="preFilterPercent">Pre-filter % (of Total Replacement):</label>
+                <select id="preFilterPercent">
+                    <option value="10">10%</option>
+                    <option value="30" selected>30%</option>
+                    <option value="50">50%</option>
+                    <option value="70">70%</option>
+                    <option value="90">90%</option>
+                </select>
+            </div>
+            <div id="preFilterRateDisplay" class="calculated-value">Pre-filter (target): 0 mL/hr (0%)</div>
+            <div id="postFilterRateDisplay" class="calculated-value">Post-filter (target): 0 mL/hr (0%)</div>
+             <div class="fixed-text" style="font-size:0.9em; background-color: #fffbe6; border: 1px solid #ffe58f;">
+                Note: The values above are initial targets. The actual machine-programmed inflow rates (shown in the prescription under "Solution Flow Rates") will be adjusted based on the Ultrafiltration Rate to maintain the overall "Calculated Total Effluent Dose".
+            </div>
+        </fieldset>
+
+        <!-- Section 4: Ultrafiltration -->
+        <fieldset>
+            <legend>Section 4: Ultrafiltration</legend>
+            <div>
+                <label for="ufInitialRate">Initial Ultrafiltration Rate (mL/hr):</label>
+                <input type="number" id="ufInitialRate" value="0" min="0">
+            </div>
+            <div class="uf-titrate-group">
+                <input type="checkbox" id="ufTitrateCheckbox">
+                <label for="ufTitrateCheckbox" class="inline-label">Titrate: 0 - 200 mL/hr according to Blood Pressure</label>
+            </div>
+        </fieldset>
+
+        <!-- Section 5: Anticoagulation -->
+        <fieldset>
+            <legend>Section 5: Anticoagulation</legend>
+            <div>
+                <label for="anticoagulationType">Type:</label>
+                <select id="anticoagulationType">
+                    <option value="None">None</option>
+                    <option value="Heparin">Heparin</option>
+                </select>
+            </div>
+            <div id="heparinOptions" style="display:none;">
+                <div>
+                    <label for="heparinBolus">Bolus (units):</label>
+                    <input type="number" id="heparinBolus" value="500" class="short-input">
+                </div>
+                <div>
+                    <label for="heparinInfusion">Infusion Rate:</label>
+                    <input type="text" id="heparinInfusion" value="5-10 u/kg/hr">
+                </div>
+                <div class="fixed-text"><strong>Target:</strong> aPTT 45–70 sec</div>
+            </div>
+        </fieldset>
+
+        <!-- Section 6: Monitoring -->
+        <fieldset>
+            <legend>Section 6: Monitoring</legend>
+            <div class="fixed-text">Monitor coagulation and electrolytes every 6 hours.</div>
+        </fieldset>
+
+        <!-- Section 7: Output -->
+        <fieldset>
+            <legend>Section 7: Generated Prescription</legend>
+            <textarea id="prescriptionTextarea" readonly></textarea>
+            <button id="copyButton">Copy to Clipboard</button>
+        </fieldset>
+
+        <!-- Extras: Presets -->
+        <fieldset class="preset-section">
+            <legend>Extras: Presets</legend>
+            <div>
+                <label for="presetName">Preset Name:</label>
+                <input type="text" id="presetName" placeholder="Enter name to save current settings">
+            </div>
+            <button id="savePresetButton">Save Preset</button>
+            <hr style="margin: 20px 0;">
+            <div>
+                <label for="loadPresetSelect">Load Preset:</label>
+                <select id="loadPresetSelect">
+                    <option value="">-- Select Preset --</option>
+                </select>
+            </div>
+            <button id="deletePresetButton" class="delete-button" style="display:none;">Delete Selected Preset</button>
+        </fieldset>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px; padding-bottom: 20px; font-size: 0.9em; color: #555;">
+        Yasser Aljohani | yasjohani@gmail.com
+    </div>
+
+    <script>
+        const state = {
+            accessSite: 'Right IJV',
+            weight: 70,
+            totalDosePerKg: 30,
+            totalEffluentDose: 0, // This is TARGET total effluent (Wt * Dose)
+            dialysateRate_target: 0, // Target before UF adjustment
+            replacementFluidTotal_target: 0, // Target before UF adjustment
+            preFilterPercent: 30,
+            postFilterPercent: 70,
+            preFilterRate_target: 0, // Target before UF adjustment
+            postFilterRate_target: 0, // Target before UF adjustment
+            
+            ufInitialRate: 0, // This is the old ufGoal
+            ufTitrateAccordingToBP: false,
+
+            // Machine programmed rates (after UF adjustment)
+            dialysateRate_machine: 0,
+            replacementFluidTotal_machine: 0,
+            preFilterRate_machine: 0,
+            postFilterRate_machine: 0,
+            
+            anticoagulationType: 'None',
+            heparinBolus: 500,
+            heparinInfusion: '5-10 u/kg/hr',
+        };
+
+        const dom = {
+            accessSiteSelect: document.getElementById('accessSite'),
+            weightInput: document.getElementById('weight'),
+            totalDosePerKgSelect: document.getElementById('totalDosePerKg'),
+            totalEffluentDoseDisplay: document.getElementById('totalEffluentDoseDisplay'),
+            dialysateRateDisplay: document.getElementById('dialysateRateDisplay'), // Displays target before UF
+            replacementFluidTotalDisplay: document.getElementById('replacementFluidTotalDisplay'), // Displays target before UF
+            preFilterPercentSelect: document.getElementById('preFilterPercent'),
+            preFilterRateDisplay: document.getElementById('preFilterRateDisplay'), // Displays target before UF
+            postFilterRateDisplay: document.getElementById('postFilterRateDisplay'), // Displays target before UF
+            
+            ufInitialRateInput: document.getElementById('ufInitialRate'),
+            ufTitrateCheckbox: document.getElementById('ufTitrateCheckbox'),
+
+            anticoagulationSelect: document.getElementById('anticoagulationType'),
+            heparinOptionsDiv: document.getElementById('heparinOptions'),
+            heparinBolusInput: document.getElementById('heparinBolus'),
+            heparinInfusionInput: document.getElementById('heparinInfusion'),
+            prescriptionTextarea: document.getElementById('prescriptionTextarea'),
+            copyButton: document.getElementById('copyButton'),
+            presetNameInput: document.getElementById('presetName'),
+            savePresetButton: document.getElementById('savePresetButton'),
+            loadPresetSelect: document.getElementById('loadPresetSelect'),
+            deletePresetButton: document.getElementById('deletePresetButton'),
+        };
+
+        function readInputs() {
+            state.accessSite = dom.accessSiteSelect.value;
+            state.weight = parseFloat(dom.weightInput.value) || 0;
+            state.totalDosePerKg = parseInt(dom.totalDosePerKgSelect.value);
+            state.preFilterPercent = parseInt(dom.preFilterPercentSelect.value);
+            
+            state.ufInitialRate = parseFloat(dom.ufInitialRateInput.value) || 0;
+            state.ufTitrateAccordingToBP = dom.ufTitrateCheckbox.checked;
+
+            state.anticoagulationType = dom.anticoagulationSelect.value;
+            if (state.anticoagulationType === 'Heparin') {
+                state.heparinBolus = parseFloat(dom.heparinBolusInput.value) || 0;
+                state.heparinInfusion = dom.heparinInfusionInput.value;
+            }
+        }
+
+        function calculateCRRTParameters() {
+            // Section 2 Calculation: Target Total Effluent Dose
+            state.totalEffluentDose = state.weight * state.totalDosePerKg;
+
+            // Section 3 Calculations (Initial Target rates before UF adjustment for display in S3)
+            state.dialysateRate_target = state.totalEffluentDose * 0.5;
+            state.replacementFluidTotal_target = state.totalEffluentDose * 0.5;
+
+            state.postFilterPercent = 100 - state.preFilterPercent;
+            state.preFilterRate_target = state.replacementFluidTotal_target * (state.preFilterPercent / 100);
+            state.postFilterRate_target = state.replacementFluidTotal_target * (state.postFilterPercent / 100);
+
+            // Calculate Machine Programmed Inflow Rates based on Target Total Effluent Dose and UF Initial Rate
+            // Programmed total inflow (Dialysate + Replacement) = Target Total Effluent Dose - UF Initial Rate
+            const combinedInflowRateForMachine = state.totalEffluentDose - state.ufInitialRate;
+
+            // Distribute this combined inflow to machine's dialysate and replacement pumps
+            // These are the rates to be programmed into the CRRT machine
+            state.dialysateRate_machine = Math.max(0, combinedInflowRateForMachine * 0.5);
+            state.replacementFluidTotal_machine = Math.max(0, combinedInflowRateForMachine * 0.5);
+            
+            // Split total machine replacement fluid into pre and post filter components
+            state.preFilterRate_machine = state.replacementFluidTotal_machine * (state.preFilterPercent / 100);
+            // Adjust post-filter to ensure sum matches total, avoiding minor rounding issues with pre-filter
+            state.postFilterRate_machine = state.replacementFluidTotal_machine - state.preFilterRate_machine;
+            
+            // Ensure non-negative values and round for machine settings (usually whole numbers for pumps)
+            state.dialysateRate_machine = Math.round(state.dialysateRate_machine);
+            // state.replacementFluidTotal_machine is already calculated above, pre/post are derived
+            state.preFilterRate_machine = Math.round(state.preFilterRate_machine);
+            state.postFilterRate_machine = Math.round(state.replacementFluidTotal_machine - state.preFilterRate_machine); // Recalculate post based on rounded pre
+            state.replacementFluidTotal_machine = state.preFilterRate_machine + state.postFilterRate_machine; // Update total based on rounded parts
+
+        }
+
+        function updateDisplays() {
+            // Section 2 Display
+            dom.totalEffluentDoseDisplay.innerHTML = `Calculated Total Effluent Dose = <strong>${state.totalEffluentDose.toFixed(0)} mL/hr</strong>`;
+            
+            // Section 3 Display (Targets BEFORE UF adjustment)
+            dom.dialysateRateDisplay.innerHTML = `Dialysate Rate (target): <strong>${state.dialysateRate_target.toFixed(0)} mL/hr</strong>`;
+            dom.replacementFluidTotalDisplay.innerHTML = `Replacement Fluid Total (target): <strong>${state.replacementFluidTotal_target.toFixed(0)} mL/hr</strong>`;
+            dom.preFilterRateDisplay.innerHTML = `Pre-filter (target): <strong>${state.preFilterRate_target.toFixed(0)} mL/hr</strong> (${state.preFilterPercent}%)`;
+            dom.postFilterRateDisplay.innerHTML = `Post-filter (target): <strong>${state.postFilterRate_target.toFixed(0)} mL/hr</strong> (${state.postFilterPercent}%)`;
+
+            // Section 5 Display
+            dom.heparinOptionsDiv.style.display = state.anticoagulationType === 'Heparin' ? 'block' : 'none';
+        }
+
+        function generatePrescriptionText() {
+            let text = `CRRT PRESCRIPTION\n`; // Changed Title
+            text += `--------------------------------------\n`;
+            text += `1. MODALITY & ACCESS\n`;
+            text += `   Mode: CVVHDF\n`;
+            text += `   Access Site: ${state.accessSite}\n`;
+            text += `   Flow Direction: A → return\n`;
+            text += `--------------------------------------\n`;
+            text += `2. CRRT SETTINGS\n`;
+            text += `   Patient Weight: ${state.weight.toFixed(1)} kg\n`;
+            text += `   Target Total Dose: ${state.totalDosePerKg} ml/kg/hr\n`;
+            text += `   Calculated Total Effluent Dose: ${state.totalEffluentDose.toFixed(0)} mL/hr\n`;
+            text += `--------------------------------------\n`;
+            text += `3. SOLUTION FLOW RATES\n`; // Changed Section 3 Title
+            text += `   Dialysate Rate: ${state.dialysateRate_machine.toFixed(0)} mL/hr\n`;
+            text += `   Replacement Fluid (Total Programmed Inflow): ${state.replacementFluidTotal_machine.toFixed(0)} mL/hr\n`;
+            text += `     - Pre-filter: ${state.preFilterRate_machine.toFixed(0)} mL/hr (${state.preFilterPercent}% of total replacement)\n`;
+            text += `     - Post-filter: ${state.postFilterRate_machine.toFixed(0)} mL/hr (${state.postFilterPercent}% of total replacement)\n`;
+            text += `--------------------------------------\n`;
+            text += `4. ULTRAFILTRATION\n`; // Changed Section 4 Title & Content
+            text += `   Initial Rate: ${state.ufInitialRate.toFixed(0)} mL/hr\n`;
+            if (state.ufTitrateAccordingToBP) {
+                text += `   Titrate: 0 - 200 mL/hr according to Blood Pressure.\n`;
+            }
+            text += `--------------------------------------\n`;
+            text += `5. ANTICOAGULATION\n`;
+            text += `   Type: ${state.anticoagulationType}\n`;
+            if (state.anticoagulationType === 'Heparin') {
+                text += `   Heparin Bolus: ${state.heparinBolus} units\n`;
+                text += `   Heparin Infusion: ${state.heparinInfusion}\n`;
+                text += `   Target: aPTT 45-70 sec\n`;
+            }
+            text += `--------------------------------------\n`;
+            text += `6. MONITORING\n`;
+            text += `   Monitor coagulation and electrolytes every 6 hours.\n`;
+            text += `--------------------------------------\n`;
+            
+            dom.prescriptionTextarea.value = text;
+        }
+        
+        function updateAll() {
+            readInputs();
+            calculateCRRTParameters();
+            updateDisplays();
+            generatePrescriptionText();
+        }
+
+        function copyToClipboard() {
+            dom.prescriptionTextarea.select();
+            dom.prescriptionTextarea.setSelectionRange(0, 99999); // For mobile devices
+            try {
+                document.execCommand('copy');
+                const originalButtonText = dom.copyButton.textContent;
+                dom.copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    dom.copyButton.textContent = originalButtonText;
+                }, 1500);
+            } catch (err) {
+                alert('Failed to copy. Please copy manually.');
+            }
+        }
+
+        const PRESET_STORAGE_KEY_PREFIX = 'crrt_preset_v2_'; // Incremented version due to new field
+
+        function savePreset() {
+            const name = dom.presetNameInput.value.trim();
+            if (!name) {
+                alert('Please enter a name for the preset.');
+                return;
+            }
+            const presetData = {
+                accessSite: dom.accessSiteSelect.value,
+                weight: dom.weightInput.value,
+                totalDosePerKg: dom.totalDosePerKgSelect.value,
+                preFilterPercent: dom.preFilterPercentSelect.value,
+                ufInitialRate: dom.ufInitialRateInput.value, // Changed from ufGoal
+                ufTitrateAccordingToBP: dom.ufTitrateCheckbox.checked, // Added
+                anticoagulationType: dom.anticoagulationSelect.value,
+                heparinBolus: dom.heparinBolusInput.value,
+                heparinInfusion: dom.heparinInfusionInput.value,
+            };
+            localStorage.setItem(PRESET_STORAGE_KEY_PREFIX + name, JSON.stringify(presetData));
+            populatePresetDropdown();
+            dom.presetNameInput.value = '';
+            alert(`Preset "${name}" saved!`);
+        }
+
+        function loadPreset() {
+            const name = dom.loadPresetSelect.value;
+            if (!name) return;
+
+            const presetString = localStorage.getItem(PRESET_STORAGE_KEY_PREFIX + name);
+            if (presetString) {
+                const loadedData = JSON.parse(presetString);
+                
+                dom.accessSiteSelect.value = loadedData.accessSite || 'Right IJV';
+                dom.weightInput.value = loadedData.weight || '70';
+                dom.totalDosePerKgSelect.value = loadedData.totalDosePerKg || '30';
+                dom.preFilterPercentSelect.value = loadedData.preFilterPercent || '30';
+                dom.ufInitialRateInput.value = loadedData.ufInitialRate || '0'; // Changed from ufGoal
+                dom.ufTitrateCheckbox.checked = loadedData.ufTitrateAccordingToBP || false; // Added
+                dom.anticoagulationSelect.value = loadedData.anticoagulationType || 'None';
+                dom.heparinBolusInput.value = loadedData.heparinBolus || '500';
+                dom.heparinInfusionInput.value = loadedData.heparinInfusion || '5-10 u/kg/hr';
+                
+                updateAll(); 
+                alert(`Preset "${name}" loaded!`);
+            }
+        }
+
+        function deletePreset() {
+            const name = dom.loadPresetSelect.value;
+            if (!name) {
+                alert('No preset selected to delete.');
+                return;
+            }
+            if (confirm(`Are you sure you want to delete preset "${name}"?`)) {
+                localStorage.removeItem(PRESET_STORAGE_KEY_PREFIX + name);
+                populatePresetDropdown();
+                alert(`Preset "${name}" deleted.`);
+            }
+        }
+
+        function populatePresetDropdown() {
+            const previouslySelected = dom.loadPresetSelect.value;
+            dom.loadPresetSelect.innerHTML = '<option value="">-- Select Preset --</option>';
+            let hasPresets = false;
+            const presetKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith(PRESET_STORAGE_KEY_PREFIX)) {
+                    presetKeys.push(key);
+                }
+            }
+            presetKeys.sort(); 
+
+            for (const key of presetKeys) {
+                const presetName = key.substring(PRESET_STORAGE_KEY_PREFIX.length);
+                const option = document.createElement('option');
+                option.value = presetName;
+                option.textContent = presetName;
+                dom.loadPresetSelect.appendChild(option);
+                hasPresets = true;
+            }
+            
+            if (hasPresets && presetKeys.includes(PRESET_STORAGE_KEY_PREFIX + previouslySelected)) {
+                dom.loadPresetSelect.value = previouslySelected;
+            }
+
+            dom.deletePresetButton.style.display = hasPresets ? 'inline-block' : 'none';
+            dom.loadPresetSelect.disabled = !hasPresets;
+        }
+        
+        function init() {
+            dom.accessSiteSelect.addEventListener('change', updateAll);
+            dom.weightInput.addEventListener('input', updateAll);
+            dom.totalDosePerKgSelect.addEventListener('change', updateAll);
+            dom.preFilterPercentSelect.addEventListener('change', updateAll);
+            dom.ufInitialRateInput.addEventListener('input', updateAll); // Changed from ufGoalInput
+            dom.ufTitrateCheckbox.addEventListener('change', updateAll); // Added
+            dom.anticoagulationSelect.addEventListener('change', updateAll);
+            dom.heparinBolusInput.addEventListener('input', updateAll);
+            dom.heparinInfusionInput.addEventListener('input', updateAll);
+
+            dom.copyButton.addEventListener('click', copyToClipboard);
+            
+            dom.savePresetButton.addEventListener('click', savePreset);
+            dom.loadPresetSelect.addEventListener('change', loadPreset);
+            dom.deletePresetButton.addEventListener('click', deletePreset);
+
+            populatePresetDropdown();
+            updateAll(); 
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
